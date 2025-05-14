@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",
+    "@huggingface/transformers": "^3.5.1",
     "@mozilla/readability": "^0.6.0",
     "@solid-primitives/scheduled": "^1.5.1",
     "@solidjs/router": "^0.15.3",

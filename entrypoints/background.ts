@@ -12,6 +12,7 @@ import { checkAndResetStreakIfNeeded } from '../src/services/db/streaks';
 
 // Import handler registration functions
 import { registerContextMenuHandlers } from '../src/background/handlers/context-menu-handler';
+import '../src/background/handlers/stt-handlers'; // Import for side effects (registers its own listener)
 import { setupContextMenu } from '../src/background/setup/context-menu-setup';
 // Import storage to check onboarding status
 import { userConfigurationStorage } from '../src/services/storage/storage';

@@ -9,6 +9,12 @@ import type { ModelOption } from '../../../src/features/models/ModelSelectionPan
 // Import the exported status types
 import type { SettingsLoadStatus, FetchStatus, TestStatus } from '../../../src/context/SettingsContext'; 
 import type { TtsProviderOption } from '../../../src/features/models/TtsProviderPanel'; // Added for TTS
+// --- Import STT Types ---
+import type { SttProviderOption } from '../../../src/features/models/SttProviderPanel'; // Removed SttModelStatus from import
+
+// --- Locally Define SttModelStatus as a workaround ---
+// Ideally, this type SttModelStatus would be exported from SttProviderPanel.tsx
+type SttModelStatus = 'not-checked' | 'not-downloaded' | 'downloading' | 'downloaded' | 'error';
 
 // --- Mock Data ---
 
@@ -23,6 +29,12 @@ const mockAvailableTtsProviders: TtsProviderOption[] = [
     { id: 'elevenlabs', name: 'ElevenLabs', logoUrl: '/images/llm-providers/11-labs.png' },
 ];
 const mockTtsProviderOptions: ProviderOption[] = [];
+
+// --- NEW Mock STT Providers ---
+const mockAvailableSttProviders: SttProviderOption[] = [
+    { id: 'moonshine', name: 'Moonshine (Local)', logoUrl: '/images/llm-providers/moonshine.png' },
+    { id: 'elevenlabs', name: 'ElevenLabs', logoUrl: '/images/llm-providers/11-labs.png', requiresApiKey: true },
+];
 
 const mockRedirectSettings: RedirectSettings = {
   GitHub: { isEnabled: true, chosenInstance: '' },
@@ -149,6 +161,34 @@ export default {
      ttsTestAudioData: { control: 'object', name: 'TTS Test Audio Data (Blob)' },
      onTtsPlayAudio: { action: 'onTtsPlayAudio' },
      ttsTestError: { control: 'object', name: 'TTS Test Error' },
+     // --- STT ArgTypes ---
+     availableSttProviders: { table: { disable: true }, name: 'Available STT Providers' },
+     selectedSttProviderId: { control: 'text', name: 'Selected STT Provider ID' },
+     onSelectSttProvider: { action: 'onSelectSttProvider' },
+     
+     elevenLabsScribeApiKey: { control: 'text', name: 'ElevenLabs API Key' },
+     onElevenLabsScribeApiKeyChange: { action: 'onElevenLabsScribeApiKeyChange' },
+     isElevenLabsScribeTesting: { control: 'boolean', name: 'ElevenLabs Testing' },
+     onTestElevenLabsScribe: { action: 'onTestElevenLabsScribe' },
+
+     moonshineModelStatus: { 
+        control: { type: 'select' },
+        options: ['not-checked', 'not-downloaded', 'downloading', 'downloaded', 'error'] as SttModelStatus[],
+        name: 'Moonshine Model Status' 
+     },
+     moonshineDownloadProgress: { control: { type: 'range', min: 0, max: 100, step: 1 }, name: 'Moonshine Download Progress' },
+     onDownloadMoonshineModel: { action: 'onDownloadMoonshineModel' },
+     isMoonshineSttTesting: { control: 'boolean', name: 'Moonshine STT Testing' },
+     onTestMoonshine: { action: 'onTestMoonshine' },
+
+     isSttRecordingActive: { control: 'boolean', name: 'STT Recording Active' },
+     sttTestResult: { control: 'text', name: 'STT Test Result (Transcription)' },
+     sttTestError: { control: 'object', name: 'STT Test Error' },
+     webGpuSupported: { 
+        control: { type: 'radio' },
+        options: [true, false, undefined],
+        name: 'WebGPU Supported (for STT)'
+     },
   },
   args: {
     initialActiveSection: 'llm',
@@ -166,6 +206,18 @@ export default {
     isElevenLabsTesting: false,
     ttsTestAudioData: null,
     ttsTestError: null,
+    // --- STT Default Args ---
+    availableSttProviders: mockAvailableSttProviders, // Initialize with mock data
+    selectedSttProviderId: undefined,
+    elevenLabsScribeApiKey: '',
+    isElevenLabsScribeTesting: false,
+    moonshineModelStatus: 'not-checked' as SttModelStatus,
+    moonshineDownloadProgress: 0,
+    isMoonshineSttTesting: false,
+    isSttRecordingActive: false,
+    sttTestResult: null,
+    sttTestError: null,
+    webGpuSupported: undefined,
   }
 };
 
@@ -201,6 +253,37 @@ const BaseRender = (args: any) => {
     
     const [ttsTestErrorSignal, setTtsTestErrorSignal] = createSignal<Error | null>(args.ttsTestError);
     createEffect(() => setTtsTestErrorSignal(args.ttsTestError));
+
+    // --- NEW STT State Signals ---
+    const [selectedSttProviderIdSignal, setSelectedSttProviderIdSignal] = createSignal<string | undefined>(args.selectedSttProviderId);
+    createEffect(() => setSelectedSttProviderIdSignal(args.selectedSttProviderId));
+
+    const [elevenLabsScribeApiKeySignal, setElevenLabsScribeApiKeySignal] = createSignal<string>(args.elevenLabsScribeApiKey);
+    createEffect(() => setElevenLabsScribeApiKeySignal(args.elevenLabsScribeApiKey));
+
+    const [isElevenLabsScribeTestingSignal, setIsElevenLabsScribeTestingSignal] = createSignal<boolean>(args.isElevenLabsScribeTesting);
+    createEffect(() => setIsElevenLabsScribeTestingSignal(args.isElevenLabsScribeTesting));
+
+    const [moonshineModelStatusSignal, setMoonshineModelStatusSignal] = createSignal<SttModelStatus>(args.moonshineModelStatus as SttModelStatus);
+    createEffect(() => setMoonshineModelStatusSignal(args.moonshineModelStatus as SttModelStatus));
+
+    const [moonshineDownloadProgressSignal, setMoonshineDownloadProgressSignal] = createSignal<number>(args.moonshineDownloadProgress);
+    createEffect(() => setMoonshineDownloadProgressSignal(args.moonshineDownloadProgress));
+
+    const [isMoonshineSttTestingSignal, setIsMoonshineSttTestingSignal] = createSignal<boolean>(args.isMoonshineSttTesting);
+    createEffect(() => setIsMoonshineSttTestingSignal(args.isMoonshineSttTesting));
+
+    const [isSttRecordingActiveSignal, setIsSttRecordingActiveSignal] = createSignal<boolean>(args.isSttRecordingActive);
+    createEffect(() => setIsSttRecordingActiveSignal(args.isSttRecordingActive));
+
+    const [sttTestResultSignal, setSttTestResultSignal] = createSignal<string | null>(args.sttTestResult);
+    createEffect(() => setSttTestResultSignal(args.sttTestResult));
+
+    const [sttTestErrorSignal, setSttTestErrorSignal] = createSignal<Error | null>(args.sttTestError);
+    createEffect(() => setSttTestErrorSignal(args.sttTestError));
+
+    const [webGpuSupportedSignal, setWebGpuSupportedSignal] = createSignal<boolean | undefined>(args.webGpuSupported);
+    createEffect(() => setWebGpuSupportedSignal(args.webGpuSupported));
 
     // Construct the full props object expected by SettingsPageView
     // Ensure all required props are provided, using args for overrides
@@ -274,6 +357,70 @@ const BaseRender = (args: any) => {
             action('onFocusModeRemoveDomain')(domainName);
             setFocusModeBlockedDomainsSignal(prev => prev.filter(d => d.name !== domainName));
         },
+        // --- NEW STT Props for SettingsPageView ---
+        availableSttProviders: args.availableSttProviders, // Pass directly from args
+        selectedSttProviderId: selectedSttProviderIdSignal,
+        onSelectSttProvider: (providerId: string | undefined) => {
+            action('onSelectSttProvider')(providerId);
+            setSelectedSttProviderIdSignal(providerId);
+            // Simulate clearing old test results when provider changes
+            setSttTestResultSignal(null);
+            setSttTestErrorSignal(null);
+        },
+        elevenLabsScribeApiKey: elevenLabsScribeApiKeySignal,
+        onElevenLabsScribeApiKeyChange: (key: string) => {
+            action('onElevenLabsScribeApiKeyChange')(key);
+            setElevenLabsScribeApiKeySignal(key);
+        },
+        isElevenLabsScribeTesting: isElevenLabsScribeTestingSignal,
+        onTestElevenLabsScribe: () => {
+            action('onTestElevenLabsScribe')();
+            setIsElevenLabsScribeTestingSignal(true);
+            setSttTestResultSignal(null);
+            setSttTestErrorSignal(null);
+            setTimeout(() => {
+                setIsElevenLabsScribeTestingSignal(false);
+                if (Math.random() > 0.3) setSttTestResultSignal('ElevenLabs: Test transcription successful!');
+                else setSttTestErrorSignal(new Error('ElevenLabs: API key invalid (simulated).'));
+            }, 1500);
+        },
+        moonshineModelStatus: moonshineModelStatusSignal,
+        moonshineDownloadProgress: moonshineDownloadProgressSignal,
+        onDownloadMoonshineModel: () => {
+            action('onDownloadMoonshineModel')();
+            setMoonshineModelStatusSignal('downloading');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                setMoonshineDownloadProgressSignal(progress);
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    if (Math.random() > 0.2) setMoonshineModelStatusSignal('downloaded');
+                    else setMoonshineModelStatusSignal('error');
+                }
+            }, 200);
+        },
+        isMoonshineSttTesting: isMoonshineSttTestingSignal,
+        onTestMoonshine: () => {
+            action('onTestMoonshine')();
+            setIsSttRecordingActiveSignal(true); // Indicate recording started
+            // After a short delay, transition to testing/transcribing state for Moonshine
+            setTimeout(() => {
+                setIsSttRecordingActiveSignal(false);
+                setIsMoonshineSttTestingSignal(true);
+                setSttTestResultSignal(null);
+                setSttTestErrorSignal(null);
+                setTimeout(() => {
+                    setIsMoonshineSttTestingSignal(false);
+                    if (Math.random() > 0.3) setSttTestResultSignal('Moonshine: Local transcription successful!');
+                    else setSttTestErrorSignal(new Error('Moonshine: Transcription failed (simulated).'));
+                }, 2000);
+            }, 1000); // Simulate some recording time
+        },
+        isSttRecordingActive: isSttRecordingActiveSignal,
+        sttTestResult: sttTestResultSignal,
+        sttTestError: sttTestErrorSignal,
+        webGpuSupported: webGpuSupportedSignal,
     };
 
     // Validate required props are present (basic check)

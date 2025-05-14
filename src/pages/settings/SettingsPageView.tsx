@@ -3,7 +3,7 @@ import { For, Show } from "solid-js";
 import { Button } from "../../components/ui/button";
 import { 
   Brain, ChartLine, SpeakerHigh,
-  TrendUp, EyeSlash
+  TrendUp, EyeSlash, Microphone
 } from "phosphor-solid";
 import {
   Sidebar,
@@ -26,13 +26,18 @@ import ProviderSelectionPanel from "../../features/models/ProviderSelectionPanel
 import ModelSelectionPanel from "../../features/models/ModelSelectionPanel";
 import ConnectionTestPanel from "../../features/models/ConnectionTestPanel";
 import { TtsProviderPanel, type TtsProviderOption } from "../../features/models/TtsProviderPanel";
+import { SttProviderPanel, type SttProviderOption, type SttModelStatus } from "../../features/models/SttProviderPanel";
 import { Header } from '../../components/layout/Header';
+
+// Placeholder type, ideally imported from where SttProviderPanel defines it or a shared types file
+export type SttTestState = 'idle' | 'recording' | 'transcribing_moonshine' | 'transcribing_elevenlabs' | 'success' | 'error';
 
 // Menu Items
 const settingsMenuItems = [
   { title: "LLM", url: "/settings/models/llm", icon: Brain, sectionKey: 'llm' },
   { title: "Embedding", url: "/settings/models/embedding", icon: ChartLine, sectionKey: 'embedding' },
   { title: "TTS", url: "/settings/models/tts", icon: SpeakerHigh, sectionKey: 'tts' },
+  { title: "STT", url: "/settings/models/stt", icon: Microphone, sectionKey: 'stt' },
 ];
 
 const censorshipMenuItems = [
@@ -91,6 +96,30 @@ interface SettingsPageViewProps {
   ttsTestAudioData: Accessor<Blob | null>;
   onTtsPlayAudio: () => void;
   ttsTestError: Accessor<Error | null>;
+
+  // --- NEW STT Props ---
+  availableSttProviders: SttProviderOption[];
+  selectedSttProviderId: Accessor<string | undefined>;
+  onSelectSttProvider: (providerId: string | undefined) => void;
+  
+  // ElevenLabs specific
+  elevenLabsScribeApiKey: Accessor<string>;
+  onElevenLabsScribeApiKeyChange: (apiKey: string) => void;
+  isElevenLabsScribeTesting: Accessor<boolean>;
+  onTestElevenLabsScribe: () => void;
+
+  // Moonshine specific
+  moonshineModelStatus: Accessor<SttModelStatus>;
+  moonshineDownloadProgress: Accessor<number>;
+  onDownloadMoonshineModel: () => void;
+  isMoonshineSttTesting: Accessor<boolean>;
+  onTestMoonshine: () => void;
+
+  // General STT Test/Interaction
+  isSttRecordingActive: Accessor<boolean>;
+  sttTestResult: Accessor<string | null>;
+  sttTestError: Accessor<Error | null>;
+  webGpuSupported: Accessor<boolean | undefined>;
 
   // Redirects Props (keep)
   onRedirectSettingChange: (service: string, update: Pick<RedirectServiceSetting, 'isEnabled'>) => Promise<void>;
@@ -307,6 +336,32 @@ const SettingsPageView: Component<SettingsPageViewProps> = (props) => {
                         testAudioData={props.ttsTestAudioData}
                         onPlayTestAudio={props.onTtsPlayAudio}
                         testError={props.ttsTestError}
+                      />
+                    </Show>
+
+                    {/* --- NEW STT Section --- */}
+                    <Show when={props.activeSection() === 'stt'}>
+                      <SttProviderPanel
+                        availableProviders={props.availableSttProviders}
+                        selectedProviderId={props.selectedSttProviderId}
+                        onSelectProvider={props.onSelectSttProvider}
+                        
+                        elevenLabsApiKey={props.elevenLabsScribeApiKey}
+                        onElevenLabsApiKeyChange={props.onElevenLabsScribeApiKeyChange}
+                        isElevenLabsTesting={props.isElevenLabsScribeTesting}
+                        onTestElevenLabs={props.onTestElevenLabsScribe}
+                        
+                        moonshineModelStatus={props.moonshineModelStatus}
+                        moonshineDownloadProgress={props.moonshineDownloadProgress}
+                        onDownloadMoonshineModel={props.onDownloadMoonshineModel}
+                        isMoonshineTesting={props.isMoonshineSttTesting}
+                        onTestMoonshine={props.onTestMoonshine}
+                        
+                        isWebGpuSupported={props.webGpuSupported}
+                        
+                        isRecording={props.isSttRecordingActive}
+                        transcribedText={props.sttTestResult}
+                        sttTestError={props.sttTestError}
                       />
                     </Show>
 
